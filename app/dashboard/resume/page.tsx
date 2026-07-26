@@ -1,13 +1,27 @@
-import { FileText } from "lucide-react"
+import { redirect } from "next/navigation"
 
-import { PagePlaceholder } from "@/components/dashboard/page-placeholder"
+import { createClient } from "@/lib/supabase/server"
+import { ResumeList } from "@/components/dashboard/resume-list"
 
-export default function ResumePage() {
+export default async function ResumePage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect("/sign-in")
+  }
+
+  const { data: resumes } = await supabase
+    .from("resumes")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+
   return (
-    <PagePlaceholder
-      icon={FileText}
-      title="Resume"
-      description="Upload your resume and let AI tailor it for every application."
-    />
+    <div className="mx-auto max-w-3xl p-4 sm:p-6">
+      <ResumeList resumes={resumes ?? []} />
+    </div>
   )
 }

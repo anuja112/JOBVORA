@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
+import { OnboardingDialog } from "@/components/dashboard/onboarding-dialog"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
 export default async function DashboardLayout({
@@ -17,6 +18,16 @@ export default async function DashboardLayout({
   if (!user) {
     redirect("/sign-in")
   }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("onboarding_completed")
+    .eq("id", user.id)
+    .maybeSingle()
+
+  // A missing row (e.g. the trigger hasn't run yet for an older account)
+  // is treated the same as "not onboarded" — safer than assuming done.
+  const needsOnboarding = !profile?.onboarding_completed
 
   const displayName =
     user.user_metadata?.full_name ??
@@ -37,6 +48,7 @@ export default async function DashboardLayout({
         <DashboardHeader />
         <div className="flex-1">{children}</div>
       </SidebarInset>
+      <OnboardingDialog open={needsOnboarding} />
     </SidebarProvider>
   )
 }
