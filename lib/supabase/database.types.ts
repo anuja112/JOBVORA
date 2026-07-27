@@ -7,6 +7,13 @@ export type Json =
   | Json[]
 
 export type ResumeStatus = "uploaded" | "processing" | "parsed" | "failed"
+export type JobPlatform = "greenhouse" | "lever" | "workable" | "wellfound"
+export type AppliedStatus =
+  | "not_applied"
+  | "applied"
+  | "interviewing"
+  | "rejected"
+  | "offer"
 
 export interface LinkItem {
   label: string
@@ -27,6 +34,9 @@ export interface Database {
           summary: string | null
           skills: string[]
           links: LinkItem[] | Json
+          preferred_location: string | null
+          target_role: string | null
+          job_type_preference: string | null
           active_resume_id: string | null
           onboarding_completed: boolean
           created_at: string
@@ -42,6 +52,9 @@ export interface Database {
           summary?: string | null
           skills?: string[]
           links?: LinkItem[] | Json
+          preferred_location?: string | null
+          target_role?: string | null
+          job_type_preference?: string | null
           active_resume_id?: string | null
           onboarding_completed?: boolean
           created_at?: string
@@ -57,6 +70,9 @@ export interface Database {
           summary?: string | null
           skills?: string[]
           links?: LinkItem[] | Json
+          preferred_location?: string | null
+          target_role?: string | null
+          job_type_preference?: string | null
           active_resume_id?: string | null
           onboarding_completed?: boolean
           created_at?: string
@@ -322,6 +338,72 @@ export interface Database {
             referencedColumns: ["id"]
           },
         ]
+      }
+      jobs: {
+        Row: {
+          id: string
+          user_id: string
+          platform: JobPlatform
+          title: string
+          company: string | null
+          company_logo: string | null
+          location: string | null
+          salary: string | null
+          job_type: string | null
+          experience_level: string | null
+          description: string | null
+          tags: string[] | Json
+          match_score: number
+          job_url: string
+          source_url: string | null
+          applied_status: AppliedStatus
+          saved_status: boolean
+          fetched_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          platform: JobPlatform
+          title: string
+          company?: string | null
+          company_logo?: string | null
+          location?: string | null
+          salary?: string | null
+          job_type?: string | null
+          experience_level?: string | null
+          description?: string | null
+          tags?: string[] | Json
+          match_score?: number
+          job_url: string
+          source_url?: string | null
+          applied_status?: AppliedStatus
+          saved_status?: boolean
+          fetched_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          platform?: JobPlatform
+          title?: string
+          company?: string | null
+          company_logo?: string | null
+          location?: string | null
+          salary?: string | null
+          job_type?: string | null
+          experience_level?: string | null
+          description?: string | null
+          tags?: string[] | Json
+          match_score?: number
+          job_url?: string
+          source_url?: string | null
+          applied_status?: AppliedStatus
+          saved_status?: boolean
+          fetched_at?: string
+          created_at?: string
+        }
+        Relationships: []
       }
     }
     Views: Record<string, never>

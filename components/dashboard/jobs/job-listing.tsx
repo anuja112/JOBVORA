@@ -1,0 +1,164 @@
+"use client"
+
+import * as React from "react"
+import Image from "next/image"
+import {
+  Bookmark,
+  Briefcase,
+  Building2,
+  ExternalLink,
+  Loader2,
+  MapPin,
+  Wallet,
+} from "lucide-react"
+
+import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemFooter,
+  ItemHeader,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item"
+import { getPlatformConfig } from "@/lib/jobs/platforms"
+import { stripHtml,withTruncationMark } from "@/lib/jobs/normalize"
+import { markJobAppliedAction, toggleSaveJobAction } from "@/app/actions/jobs"
+import type { Database } from "@/lib/supabase/database.types"
+
+type JobRow = Database["public"]["Tables"]["jobs"]["Row"]
+
+export function JobListing({ job }: { job: JobRow }) {
+  const [saved, setSaved] = React.useState(job.saved_status)
+  const [isSaving, setIsSaving] = React.useState(false)
+  const platform = getPlatformConfig(job.platform)
+  const tags = Array.isArray(job.tags) ? (job.tags as string[]) : []
+
+  async function handleToggleSave() {
+    const next = !saved
+    setSaved(next)
+    setIsSaving(true)
+    const result = await toggleSaveJobAction(job.id, next)
+    setIsSaving(false)
+    if (!result.success) {
+      setSaved(!next) // revert on failure
+    }
+  }
+
+  function handleApply() {
+    window.open(job.job_url, "_blank", "noopener,noreferrer")
+    void markJobAppliedAction(job.id)
+  }
+
+  return (
+    <Item variant="outline" className="flex-col items-start sm:flex-row sm:items-start">
+      <ItemMedia variant="image" className="size-12 shrink-0 rounded-2xl bg-muted">
+        {job.company_logo ? (
+          <Image
+            src={job.company_logo}
+            alt={job.company ?? "Company logo"}
+            width={48}
+            height={48}
+          />
+        ) : (
+          <span className="flex size-full items-center justify-center bg-muted">
+            <Image src={platform.logo} alt={platform.name} width={28} height={28} />
+          </span>
+        )}
+      </ItemMedia>
+
+      <ItemContent className="min-w-0 flex-1 gap-2.5">
+        <ItemHeader>
+          <ItemTitle className="w-full min-w-0 truncate text-base font-semibold">
+            {stripHtml(job.title)}
+          </ItemTitle>
+          <Badge variant="outline" className="shrink-0 gap-1.5">
+            <Image src={platform.logo} alt="" width={12} height={12} className="rounded-[3px]" />
+            {platform.name}
+          </Badge>
+        </ItemHeader>
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          {job.company && (
+            <span className="flex items-center gap-1">
+              <Building2 className="size-3.5" /> {stripHtml(job.company)}
+            </span>
+          )}
+          {job.location && (
+            <span className="flex items-center gap-1">
+              <MapPin className="size-3.5" /> {job.location}
+            </span>
+          )}
+          {job.salary && (
+            <span className="flex items-center gap-1">
+              <Wallet className="size-3.5" /> {job.salary}
+            </span>
+          )}
+          {job.job_type && (
+            <span className="flex items-center gap-1">
+              <Briefcase className="size-3.5" /> {job.job_type}
+            </span>
+          )}
+          {job.experience_level && <span>· {job.experience_level}</span>}
+        </div>
+
+        {job.description && (
+          <ItemDescription className="w-full break-words leading-relaxed text-foreground/70 line-clamp-2 sm:line-clamp-1">
+            {withTruncationMark(stripHtml(job.description))}
+          </ItemDescription>
+        )}
+
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-0.5 sm:min-w-0 sm:flex-nowrap sm:overflow-x-auto">
+            {tags.slice(0, 3).map((tag) => (
+              <Badge key={tag} variant="secondary" className="shrink-0 whitespace-nowrap">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        <ItemFooter className="pt-1">
+          <div className="flex w-full max-w-40 items-center gap-2">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary-foreground"
+                style={{ width: `${job.match_score}%` }}
+              />
+            </div>
+            <span className="text-xs font-medium tabular-nums text-muted-foreground">
+              {job.match_score}% match
+            </span>
+          </div>
+        </ItemFooter>
+      </ItemContent>
+
+      <ItemActions className="flex-row gap-2 self-start sm:self-center sm:flex-col sm:items-stretch">
+        <Button size="sm" onClick={handleApply} className="gap-1.5">
+          Apply Now <ExternalLink className="size-3.5" />
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={isSaving}
+          onClick={handleToggleSave}
+          className={cn(
+            "gap-1.5",
+            saved && "border-primary-foreground/30 text-primary-foreground"
+          )}
+        >
+          {isSaving ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Bookmark className={cn("size-3.5", saved && "fill-current")} />
+          )}
+          {saved ? "Saved" : "Save"}
+        </Button>
+      </ItemActions>
+    </Item>
+  )
+}

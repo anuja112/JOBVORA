@@ -46,7 +46,7 @@ export default async function DashboardLayout({
       <AppSidebar user={sidebarUser} />
       <SidebarInset>
         <DashboardHeader />
-        <div className="flex-1">{children}</div>
+        <div className="min-w-0 flex-1 overflow-x-hidden">{children}</div>
       </SidebarInset>
       <OnboardingDialog open={needsOnboarding} />
     </SidebarProvider>
