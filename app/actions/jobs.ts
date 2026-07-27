@@ -103,9 +103,45 @@ export async function fetchJobsAction(
     }))
 
     if (rows.length > 0) {
+      // An upsert updates every supplied column on a conflict. Carry the
+      // user-managed fields forward so a refreshed job search cannot reset a
+      // saved job or its current application progress.
+      const { data: existingJobs, error: existingJobsError } = await supabase
+        .from("jobs")
+        .select("job_url, saved_status, applied_status")
+        .eq("user_id", user.id)
+        .in(
+          "job_url",
+          rows.map((row) => row.job_url)
+        )
+
+      if (existingJobsError) {
+        meta[platform] = {
+          cached: !!mostRecent,
+          count: 0,
+          error: `Failed to check existing jobs: ${existingJobsError.message}`,
+        }
+        continue
+      }
+
+      const existingStateByUrl = new Map(
+        (existingJobs ?? []).map((job) => [
+          job.job_url,
+          {
+            saved_status: job.saved_status,
+            applied_status: job.applied_status,
+          },
+        ])
+      )
+
+      const rowsWithUserState = rows.map((row) => ({
+        ...row,
+        ...existingStateByUrl.get(row.job_url),
+      }))
+
       const { error: upsertError } = await supabase
         .from("jobs")
-        .upsert(rows, { onConflict: "user_id,job_url" })
+        .upsert(rowsWithUserState, { onConflict: "user_id,job_url" })
 
       if (upsertError) {
         meta[platform] = {
@@ -161,6 +197,7 @@ export async function toggleSaveJobAction(
   }
 
   revalidatePath("/dashboard/jobs")
+  revalidatePath("/dashboard/saved-jobs")
   return { success: true }
 }
 
@@ -188,6 +225,7 @@ export async function markJobAppliedAction(
   }
 
   revalidatePath("/dashboard/jobs")
+  revalidatePath("/dashboard/saved-jobs")
   revalidatePath("/dashboard/status")
   return { success: true }
 }

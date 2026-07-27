@@ -60,11 +60,11 @@ export function JobsWorkspace({
     setHasSearched(true)
     setStatus("idle")
 
-    const platformErrors = Object.entries(result.meta)
-      .filter(([, m]) => m.error)
-      .map(([platform, m]) => `${platform}: ${m.error}`)
-    if (platformErrors.length > 0) {
-      setError(platformErrors.join(" · "))
+    const hasPlatformErrors = Object.values(result.meta).some((meta) => meta.error)
+    if (hasPlatformErrors) {
+      setError(
+        "We couldn't find jobs right now. Please try again in a few minutes."
+      )
     }
   }
 
@@ -106,7 +106,7 @@ export function JobsWorkspace({
 
       {status === "loading" && <JobListingSkeletonGroup />}
 
-      {status !== "loading" && jobs.length === 0 && (
+      {status !== "loading" && !error && jobs.length === 0 && (
         <div className="flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed py-16 text-center">
           <SearchX className="size-8 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">

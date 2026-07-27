@@ -14,6 +14,10 @@ const pageTitles: Record<string, { title: string; description: string }> = {
     title: "Jobs",
     description: "Discover and track roles matched to your profile.",
   },
+  "/dashboard/saved-jobs": {
+    title: "Saved Jobs",
+    description: "Review roles you saved for later.",
+  },
   "/dashboard/resume": {
     title: "Resume",
     description: "Manage and tailor your resume with AI.",

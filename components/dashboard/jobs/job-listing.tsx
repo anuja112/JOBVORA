@@ -32,8 +32,31 @@ import type { Database } from "@/lib/supabase/database.types"
 
 type JobRow = Database["public"]["Tables"]["jobs"]["Row"]
 
-export function JobListing({ job }: { job: JobRow }) {
+const applicationStatusLabels = {
+  not_applied: "Not applied",
+  applied: "Applied",
+  interviewing: "Interviewing",
+  rejected: "Rejected",
+  offer: "Offer",
+} as const
+
+const applicationStatusClasses = {
+  not_applied: "border-muted-foreground/30 text-muted-foreground",
+  applied: "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300",
+  interviewing: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  rejected: "border-destructive/30 bg-destructive/10 text-destructive",
+  offer: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+} as const
+
+export function JobListing({
+  job,
+  onSavedChange,
+}: {
+  job: JobRow
+  onSavedChange?: (saved: boolean) => void
+}) {
   const [saved, setSaved] = React.useState(job.saved_status)
+  const [applicationStatus, setApplicationStatus] = React.useState(job.applied_status)
   const [isSaving, setIsSaving] = React.useState(false)
   const platform = getPlatformConfig(job.platform)
   const tags = Array.isArray(job.tags) ? (job.tags as string[]) : []
@@ -46,12 +69,17 @@ export function JobListing({ job }: { job: JobRow }) {
     setIsSaving(false)
     if (!result.success) {
       setSaved(!next) // revert on failure
+      return
     }
+    onSavedChange?.(next)
   }
 
-  function handleApply() {
+  async function handleApply() {
     window.open(job.job_url, "_blank", "noopener,noreferrer")
-    void markJobAppliedAction(job.id)
+    const result = await markJobAppliedAction(job.id)
+    if (result.success) {
+      setApplicationStatus("applied")
+    }
   }
 
   return (
@@ -79,6 +107,12 @@ export function JobListing({ job }: { job: JobRow }) {
           <Badge variant="outline" className="shrink-0 gap-1.5">
             <Image src={platform.logo} alt="" width={12} height={12} className="rounded-[3px]" />
             {platform.name}
+          </Badge>
+          <Badge
+            variant="outline"
+            className={cn("shrink-0", applicationStatusClasses[applicationStatus])}
+          >
+            {applicationStatusLabels[applicationStatus]}
           </Badge>
         </ItemHeader>
 

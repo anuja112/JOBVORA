@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
   Briefcase,
+  Bookmark,
   ChevronsUpDown,
   CreditCard,
   FileText,
@@ -45,6 +46,7 @@ import { createClient } from "@/lib/supabase/client"
 
 const navItems = [
   { title: "Jobs", url: "/dashboard/jobs", icon: Briefcase },
+  { title: "Saved Jobs", url: "/dashboard/saved-jobs", icon: Bookmark },
   { title: "Resume", url: "/dashboard/resume", icon: FileText },
   { title: "Profile", url: "/dashboard/profile", icon: UserRound },
   { title: "Application Status", url: "/dashboard/status", icon: ListChecks },
