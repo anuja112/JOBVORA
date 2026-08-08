@@ -27,10 +27,21 @@ import {
 } from "@/components/ui/item"
 import { getPlatformConfig } from "@/lib/jobs/platforms"
 import { stripHtml,withTruncationMark } from "@/lib/jobs/normalize"
-import { markJobAppliedAction, toggleSaveJobAction } from "@/app/actions/jobs"
+import { toggleSaveJobAction } from "@/app/actions/jobs"
+import { ApplyOptionsDialog } from "@/components/dashboard/jobs/apply-options-dialog"
 import type { Database } from "@/lib/supabase/database.types"
 
 type JobRow = Database["public"]["Tables"]["jobs"]["Row"]
+type JobWithAutomation = JobRow & { automationStatus?: string | null }
+
+const automationStatusMeta: Record<string, { label: string; className: string }> = {
+  detecting_fields: { label: "Queued", className: "border-blue-500/30 bg-blue-500/10 text-blue-700" },
+  ready_to_apply: { label: "Ready to review", className: "border-violet-500/30 bg-violet-500/10 text-violet-700" },
+  submitting: { label: "In progress", className: "border-blue-500/30 bg-blue-500/10 text-blue-700" },
+  missing_profile_info: { label: "Details needed", className: "border-amber-500/30 bg-amber-500/10 text-amber-700" },
+  submitted: { label: "Submitted", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700" },
+  failed: { label: "Failed", className: "border-destructive/30 bg-destructive/10 text-destructive" },
+}
 
 const applicationStatusLabels = {
   not_applied: "Not applied",
@@ -52,12 +63,14 @@ export function JobListing({
   job,
   onSavedChange,
 }: {
-  job: JobRow
+  job: JobWithAutomation
   onSavedChange?: (saved: boolean) => void
 }) {
   const [saved, setSaved] = React.useState(job.saved_status)
-  const [applicationStatus, setApplicationStatus] = React.useState(job.applied_status)
+  const applicationStatus = job.applied_status
+  const [automationStatus, setAutomationStatus] = React.useState(job.automationStatus)
   const [isSaving, setIsSaving] = React.useState(false)
+  const [applyOpen, setApplyOpen] = React.useState(false)
   const platform = getPlatformConfig(job.platform)
   const tags = Array.isArray(job.tags) ? (job.tags as string[]) : []
 
@@ -74,16 +87,8 @@ export function JobListing({
     onSavedChange?.(next)
   }
 
-  async function handleApply() {
-    window.open(job.job_url, "_blank", "noopener,noreferrer")
-    const result = await markJobAppliedAction(job.id)
-    if (result.success) {
-      setApplicationStatus("applied")
-    }
-  }
-
   return (
-    <Item variant="outline" className="flex-col items-start sm:flex-row sm:items-start">
+    <><Item variant="outline" className="flex-col items-start sm:flex-row sm:items-start">
       <ItemMedia variant="image" className="size-12 shrink-0 rounded-2xl bg-muted">
         {job.company_logo ? (
           <Image
@@ -114,6 +119,11 @@ export function JobListing({
           >
             {applicationStatusLabels[applicationStatus]}
           </Badge>
+          {automationStatus && automationStatusMeta[automationStatus] && (
+            <Badge variant="outline" className={cn("shrink-0", automationStatusMeta[automationStatus].className)}>
+              {automationStatusMeta[automationStatus].label}
+            </Badge>
+          )}
         </ItemHeader>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
@@ -172,7 +182,7 @@ export function JobListing({
       </ItemContent>
 
       <ItemActions className="flex-row gap-2 self-start sm:self-center sm:flex-col sm:items-stretch">
-        <Button size="sm" onClick={handleApply} className="gap-1.5">
+        <Button size="sm" onClick={() => setApplyOpen(true)} className="gap-1.5">
           Apply Now <ExternalLink className="size-3.5" />
         </Button>
         <Button
@@ -193,6 +203,6 @@ export function JobListing({
           {saved ? "Saved" : "Save"}
         </Button>
       </ItemActions>
-    </Item>
+    </Item><ApplyOptionsDialog open={applyOpen} onOpenChange={setApplyOpen} jobId={job.id} jobUrl={job.job_url} onAutoStarted={() => setAutomationStatus("detecting_fields")} /></>
   )
 }

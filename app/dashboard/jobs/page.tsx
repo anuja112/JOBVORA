@@ -26,7 +26,7 @@ export default async function JobsPage() {
     redirect("/sign-in")
   }
 
-  const [profileRes, jobsRes, workRes, eduRes, projRes, certRes] =
+  const [profileRes, jobsRes, applicationsRes, workRes, eduRes, projRes, certRes] =
     await Promise.all([
       supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
       supabase
@@ -35,6 +35,10 @@ export default async function JobsPage() {
         .eq("user_id", user.id)
         .order("match_score", { ascending: false })
         .order("fetched_at", { ascending: false }),
+      supabase
+        .from("job_applications")
+        .select("job_id, status")
+        .eq("user_id", user.id),
       supabase
         .from("work_experiences")
         .select("id", { count: "exact", head: true })
@@ -54,7 +58,13 @@ export default async function JobsPage() {
     ])
 
   const profile = profileRes.data
-  const jobs = jobsRes.data ?? []
+  const applicationStatusByJob = new Map(
+    (applicationsRes.data ?? []).map((application) => [application.job_id, application.status])
+  )
+  const jobs = (jobsRes.data ?? []).map((job) => ({
+    ...job,
+    automationStatus: applicationStatusByJob.get(job.id) ?? null,
+  }))
   const links = (profile?.links as LinkItem[] | null) ?? []
 
   const displayName =

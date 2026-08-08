@@ -13,13 +13,14 @@ import { JOB_PLATFORMS } from "@/lib/jobs/platforms"
 import type { Database, JobPlatform } from "@/lib/supabase/database.types"
 
 type JobRow = Database["public"]["Tables"]["jobs"]["Row"]
+type JobWithAutomation = JobRow & { automationStatus?: string | null }
 
 export function JobsWorkspace({
   initialJobs,
   initialPlatforms,
   preferences,
 }: {
-  initialJobs: JobRow[]
+  initialJobs: JobWithAutomation[]
   initialPlatforms: JobPlatform[]
   preferences: {
     targetRole: string
@@ -32,7 +33,7 @@ export function JobsWorkspace({
       ? initialPlatforms
       : JOB_PLATFORMS.map((p) => p.id)
   )
-  const [jobs, setJobs] = React.useState<JobRow[]>(initialJobs)
+  const [jobs, setJobs] = React.useState<JobWithAutomation[]>(initialJobs)
   const [status, setStatus] = React.useState<"idle" | "loading" | "error">(
     "idle"
   )

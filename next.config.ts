@@ -9,9 +9,10 @@ const nextConfig: NextConfig = {
     contentDispositionType: "attachment",
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
-turbopack: {
+  turbopack: {
     root:  path.join(__dirname),
   },
+  serverExternalPackages: ["playwright", "@browserbasehq/stagehand", "@browserbasehq/sdk"],
 };
 
 export default nextConfig;
