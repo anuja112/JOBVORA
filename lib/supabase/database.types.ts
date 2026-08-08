@@ -14,6 +14,7 @@ export type AppliedStatus =
   | "interviewing"
   | "rejected"
   | "offer"
+export type ApplicationStatus = "detecting_fields" | "missing_profile_info" | "ready_to_apply" | "submitting" | "submitted" | "failed"
 
 export interface LinkItem {
   label: string
@@ -34,6 +35,7 @@ export interface Database {
           summary: string | null
           skills: string[]
           links: LinkItem[] | Json
+          custom_fields: Json
           preferred_location: string | null
           target_role: string | null
           job_type_preference: string | null
@@ -52,6 +54,7 @@ export interface Database {
           summary?: string | null
           skills?: string[]
           links?: LinkItem[] | Json
+          custom_fields?: Json
           preferred_location?: string | null
           target_role?: string | null
           job_type_preference?: string | null
@@ -70,6 +73,7 @@ export interface Database {
           summary?: string | null
           skills?: string[]
           links?: LinkItem[] | Json
+          custom_fields?: Json
           preferred_location?: string | null
           target_role?: string | null
           job_type_preference?: string | null
@@ -403,6 +407,12 @@ export interface Database {
           fetched_at?: string
           created_at?: string
         }
+        Relationships: []
+      }
+      job_applications: {
+        Row: { id: string; user_id: string; job_id: string; platform: string; application_url: string; status: ApplicationStatus; required_fields: Json; missing_fields: Json; field_mapping: Json; browserbase_session_id: string | null; submitted_at: string | null; error_message: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; user_id: string; job_id: string; platform?: string; application_url: string; status?: ApplicationStatus; required_fields?: Json; missing_fields?: Json; field_mapping?: Json; browserbase_session_id?: string | null; submitted_at?: string | null; error_message?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; user_id?: string; job_id?: string; platform?: string; application_url?: string; status?: ApplicationStatus; required_fields?: Json; missing_fields?: Json; field_mapping?: Json; browserbase_session_id?: string | null; submitted_at?: string | null; error_message?: string | null; created_at?: string; updated_at?: string }
         Relationships: []
       }
     }

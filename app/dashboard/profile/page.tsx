@@ -4,6 +4,9 @@ import { createClient } from "@/lib/supabase/server"
 import { ProfileForm } from "@/components/dashboard/profile-form"
 import type { ParsedResume } from "@/lib/resume/schema"
 import type { LinkItem } from "@/lib/supabase/database.types"
+import Link from "next/link"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { TriangleAlert } from "lucide-react"
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -15,7 +18,7 @@ export default async function ProfilePage() {
     redirect("/sign-in")
   }
 
-  const [profileRes, workRes, educationRes, projectsRes, certsRes] =
+  const [profileRes, workRes, educationRes, projectsRes, certsRes, applicationsRes] =
     await Promise.all([
       supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
       supabase
@@ -38,6 +41,7 @@ export default async function ProfilePage() {
         .select("*")
         .eq("user_id", user.id)
         .order("sort_order", { ascending: true }),
+      supabase.from("job_applications").select("id, missing_fields").eq("user_id", user.id).eq("status", "missing_profile_info"),
     ])
 
   const profile = profileRes.data
@@ -86,6 +90,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-5xl p-4 sm:p-6">
+      {(applicationsRes.data?.length ?? 0) > 0 && <Alert className="mb-6 border-amber-500/30 bg-amber-500/5"><TriangleAlert/><AlertTitle>Complete your profile to continue applying</AlertTitle><AlertDescription>One or more applications need: {applicationsRes.data?.flatMap((item) => Array.isArray(item.missing_fields) ? (item.missing_fields as { label?: string }[]).map((field) => field.label).filter(Boolean) : []).join(", ")}. <Link href="/dashboard/status" className="font-medium underline">View applications</Link></AlertDescription></Alert>}
       <ProfileForm initialData={initialData} />
     </div>
   )
