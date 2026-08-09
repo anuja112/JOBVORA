@@ -37,7 +37,7 @@ export function AuthLayout({
               <Briefcase className="size-5" />
             </div>
             <span className="text-lg font-semibold tracking-tight">
-              Job Agent
+              JobVora
             </span>
           </Link>
           <div className="space-y-1">

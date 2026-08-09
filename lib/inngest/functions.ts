@@ -103,13 +103,16 @@ async function recordWorkflowFailure(
 ) {
   const applicationId = (event.data.event.data as { applicationId?: string } | undefined)?.applicationId
   if (!applicationId) return
-  await createAdminClient()
+  const { error } = await createAdminClient()
     .from("job_applications")
     .update({
       status: "failed",
+      pending_action: null,
       error_message: event.data.error.message ?? "The automation workflow failed after retrying.",
     })
     .eq("id", applicationId)
+    .neq("status", "submitted")
+  if (error) console.error("Could not record job-application workflow failure", error.message)
 }
 
 export const detectApplicationFields = inngest.createFunction(
@@ -131,6 +134,7 @@ export const detectApplicationFields = inngest.createFunction(
         if (await requiresHumanVerification(page)) {
           await admin.from("job_applications").update({
             browserbase_session_id: sessionId,
+            pending_action: "captcha_verification",
             error_message: "Complete verification in the live verification session to continue inspecting this application.",
           }).eq("id", application.id)
           if (!await waitForHumanVerification(page)) {
@@ -142,9 +146,9 @@ export const detectApplicationFields = inngest.createFunction(
         return { fields: await detectRequiredFields(page, detectApplicationPlatform(application.application_url), stagehand), sessionId }
       }))
       const { values, missing } = mapApplicationFields(result.fields as RequiredField[], application)
-      await admin.from("job_applications").update({ platform: detectApplicationPlatform(application.application_url), required_fields: result.fields, missing_fields: missing, field_mapping: values, browserbase_session_id: result.sessionId, status: missing.length ? "missing_profile_info" : "ready_to_apply", error_message: null }).eq("id", application.id)
+      await admin.from("job_applications").update({ platform: detectApplicationPlatform(application.application_url), required_fields: result.fields, missing_fields: missing, field_mapping: values, browserbase_session_id: result.sessionId, status: missing.length ? "missing_profile_info" : "ready_to_apply", pending_action: null, error_message: null }).eq("id", application.id)
     } catch (error) {
-      await admin.from("job_applications").update({ status: "failed", error_message: error instanceof Error ? error.message : "Could not inspect the form." }).eq("id", application.id)
+      await admin.from("job_applications").update({ status: "failed", pending_action: null, error_message: error instanceof Error ? error.message : "Could not inspect the form." }).eq("id", application.id).neq("status", "submitted")
       throw error
     }
   }
@@ -168,7 +172,7 @@ export const submitJobApplication = inngest.createFunction(
       )
     }
     if (application.status === "ready_to_apply") {
-      await admin.from("job_applications").update({ status: "submitting", error_message: null }).eq("id", application.id)
+      await admin.from("job_applications").update({ status: "submitting", pending_action: null, error_message: null }).eq("id", application.id)
     }
     try {
       if (!application.resumes?.storage_path) {
@@ -176,6 +180,7 @@ export const submitJobApplication = inngest.createFunction(
         await admin.from("job_applications").update({
           status: "missing_profile_info",
           missing_fields: [resumeField],
+          pending_action: null,
           error_message: null,
         }).eq("id", application.id)
         return { outcome: "missing_profile_info", missingFields: [resumeField.label] }
@@ -192,6 +197,7 @@ export const submitJobApplication = inngest.createFunction(
         if (await requiresHumanVerification(page)) {
           await admin.from("job_applications").update({
             browserbase_session_id: sessionId,
+            pending_action: "captcha_verification",
             error_message: "Complete verification in the live verification session to continue this application.",
           }).eq("id", application.id)
           if (!await waitForHumanVerification(page)) {
@@ -209,65 +215,62 @@ export const submitJobApplication = inngest.createFunction(
           buffer: downloadedResume.buffer,
         }, fields, stagehand, platform)
         if (submission.outcome === "validation_required" || submission.outcome === "manual_review_required") {
-          // Keep this exact, already pre-filled browser session open. Some ATS
-          // forms reveal conditional required questions only after the initial
-          // answers are entered, so the applicant can finish those fields and
-          // use the employer's final Submit button without starting over.
+          
           await admin.from("job_applications").update({
             browserbase_session_id: sessionId,
             missing_fields: submission.outcome === "validation_required" ? submission.fields : [],
+            pending_action: submission.outcome === "validation_required" ? "manual_form_completion" : "manual_submission_review",
             error_message: submission.outcome === "validation_required"
               ? "The AI needs your help with one or more required form fields. Complete them in the live form and press Submit application. The session stays open for two minutes."
-              : "The AI clicked Submit, but this employer did not show a verifiable confirmation. Review the completed live form and press the employer's Submit button if it is still shown. The session stays open for two minutes.",
+              : `The AI clicked Submit, but this employer did not show a verifiable confirmation. Review the completed live form and press the employer's Submit button if it is still shown. The session stays open for two minutes.${submission.diagnostic ? ` Employer response: ${submission.diagnostic}` : ""}`,
           }).eq("id", application.id)
-          if (!await waitForManualApplicationSubmission(page)) {
-            throw new Error("The live form session timed out before the application could be confirmed as submitted.")
+          const manualOutcome = await waitForManualApplicationSubmission(page)
+          if (manualOutcome !== "submitted") {
+            throw new Error(manualOutcome === "session_expired"
+              ? "The live form session expired before the application could be confirmed as submitted. Start a new attempt when you are ready."
+              : "The live form session timed out before the application could be confirmed as submitted.")
           }
           return { sessionId, missing: [], values }
         }
         if (submission.outcome === "captcha_required") {
-          // Persist the running session before waiting. The status page uses a
-          // server-authorized live-view route so the applicant can take over
-          // this pre-filled browser, solve CAPTCHA, and press final submit.
+         
           await admin.from("job_applications").update({
             browserbase_session_id: sessionId,
+            pending_action: "captcha_verification",
             error_message: "Complete CAPTCHA in the live verification session. The pre-filled browser stays open for two minutes.",
           }).eq("id", application.id)
-          const manuallySubmitted = await waitForManualVerification(page)
-          if (!manuallySubmitted) {
-            throw new Error("Verification session timed out before the application was submitted. Start a new attempt when you are ready to complete CAPTCHA.")
+          const verificationOutcome = await waitForManualVerification(page)
+          if (verificationOutcome !== "submitted") {
+            throw new Error(verificationOutcome === "session_expired"
+              ? "Verification session expired before the application was submitted. Start a new attempt when you are ready to complete CAPTCHA."
+              : "Verification session timed out before the application was submitted. Start a new attempt when you are ready to complete CAPTCHA.")
           }
         }
         return { sessionId, missing: [], values }
       }, { keepAlive: true }))
       if (outcome.missing.length) {
-        await admin.from("job_applications").update({ status: "missing_profile_info", missing_fields: outcome.missing, field_mapping: { ...(application.field_mapping as Record<string, string>), ...outcome.values }, browserbase_session_id: outcome.sessionId }).eq("id", application.id)
+        await admin.from("job_applications").update({ status: "missing_profile_info", missing_fields: outcome.missing, field_mapping: { ...(application.field_mapping as Record<string, string>), ...outcome.values }, browserbase_session_id: outcome.sessionId, pending_action: null }).eq("id", application.id)
         return {
           outcome: "missing_profile_info",
           missingFields: (outcome.missing as RequiredField[]).map((field) => field.label),
           browserbaseSessionId: outcome.sessionId,
         }
       }
-      await admin.from("job_applications").update({ status: "submitted", submitted_at: new Date().toISOString(), browserbase_session_id: outcome.sessionId }).eq("id", application.id)
+      await admin.from("job_applications").update({ status: "submitted", submitted_at: new Date().toISOString(), browserbase_session_id: outcome.sessionId, pending_action: null }).eq("id", application.id)
       await admin.from("jobs").update({ applied_status: "applied" }).eq("id", application.job_id)
       return { outcome: "submitted", browserbaseSessionId: outcome.sessionId }
     } catch (error) {
-      await admin.from("job_applications").update({ status: "failed", error_message: error instanceof Error ? error.message : "Submission failed." }).eq("id", application.id)
+      await admin.from("job_applications").update({ status: "failed", pending_action: null, error_message: error instanceof Error ? error.message : "Submission failed." }).eq("id", application.id).neq("status", "submitted")
       throw error
     }
   }
 )
 
-// Cancelling a run in the Inngest dashboard does not invoke the function's
-// error handler, leaving the database on `submitting`. This watchdog resolves
-// only genuinely stale attempts: the browser session is capped at ten minutes,
-// so twelve minutes leaves a safe buffer for form filling and verification.
+
 export const reconcileStaleApplications = inngest.createFunction(
   {
     id: "reconcile-stale-job-applications",
-    // This watchdog is database-only; it never creates a Browserbase session.
-    // Fifteen minutes avoids noisy Dev Server runs while still resolving a
-    // genuinely abandoned workflow after the session timeout buffer.
+    
     triggers: { cron: "*/15 * * * *" },
   },
   async () => {

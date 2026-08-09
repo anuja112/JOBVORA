@@ -26,6 +26,7 @@ type Application = {
   platform: string
   application_url: string
   browserbase_session_id: string | null
+  pending_action: string | null
   error_message: string | null
   missing_fields: unknown
   jobs?: { title: string; company: string | null } | null
@@ -42,23 +43,28 @@ const statusMeta: Record<string, { label: string; className: string; icon: typeo
 }
 
 function isAwaitingVerification(application: Application) {
-  return /complete (captcha|verification) in the live verification session/i.test(application.error_message ?? "")
+  return application.pending_action === "captcha_verification"
 }
 
 function isAwaitingManualFormCompletion(application: Application) {
-  return /AI needs your help with one or more required form fields|AI clicked Submit, but this employer did not show a verifiable confirmation/i.test(application.error_message ?? "")
+  return application.pending_action === "manual_form_completion" || application.pending_action === "manual_submission_review"
 }
 
 function needsManualFieldCompletion(application: Application) {
-  return /AI needs your help with one or more required form fields/i.test(application.error_message ?? "")
+  return application.pending_action === "manual_form_completion"
 }
 
 export function ApplicationStatusList({ applications }: { applications: Application[] }) {
   const [pending, setPending] = React.useState<string | null>(null)
   const [submittingIds, setSubmittingIds] = React.useState<Set<string>>(new Set())
   const [editing, setEditing] = React.useState<Application | null>(null)
+  const [actionError, setActionError] = React.useState<string | null>(null)
   const autoOpenedApplicationId = React.useRef<string | null>(null)
   const router = useRouter()
+  const hasActiveWorkflow = applications.some((application) =>
+    (application.status === "detecting_fields" || application.status === "submitting")
+    && !isAwaitingVerification(application)
+  )
 
   // Inngest updates the database from a separate process, so a server-action
   // revalidation cannot update an already-open browser tab. Poll only while an
@@ -67,23 +73,13 @@ export function ApplicationStatusList({ applications }: { applications: Applicat
     // A full reload would destroy text the applicant is entering in the
     // missing-details dialog. Resume background polling after it closes.
     if (editing) return
-    const hasActiveWorkflow = applications.some((application) =>
-      (application.status === "detecting_fields" && !isAwaitingVerification(application))
-      || (application.status === "submitting" && !isAwaitingVerification(application))
-    )
     if (!hasActiveWorkflow) return
 
-    // `router.refresh()` can preserve a stale client-side route payload during
-    // a long-running Server Action. A real reload is deliberate here: it runs
-    // only while the background workflow is active, and stops as soon as the
-    // pre-filled CAPTCHA handoff is written to the database.
-    const interval = window.setInterval(() => window.location.reload(), 3_000)
+    const interval = window.setInterval(() => router.refresh(), 3_000)
     return () => window.clearInterval(interval)
-  }, [applications, router, editing])
+  }, [hasActiveWorkflow, router, editing])
 
-  // When submission discovers a required field that was not exposed during
-  // initial scanning (common with location autocompletes), immediately ask for
-  // it rather than making the applicant find and click a second button.
+
   React.useEffect(() => {
     const applicationNeedingDetails = applications.find((application) => application.status === "missing_profile_info")
     if (!applicationNeedingDetails) {
@@ -97,31 +93,44 @@ export function ApplicationStatusList({ applications }: { applications: Applicat
   }, [applications])
 
   async function submit(id: string) {
-    setPending(id)
+    setPending(id); setActionError(null)
     setSubmittingIds((current) => new Set(current).add(id))
-    const result = await continueApplication(id)
-    if (!result.success) setSubmittingIds((current) => { const next = new Set(current); next.delete(id); return next })
-    else router.refresh()
-    setPending(null)
+    try {
+      const result = await continueApplication(id)
+      if (!result.success) throw new Error(result.error)
+      router.refresh()
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not start the submission.")
+      setSubmittingIds((current) => { const next = new Set(current); next.delete(id); return next })
+    } finally {
+      setPending(null)
+    }
   }
   async function refreshQuestions(id: string) {
-    setPending(id)
-    const result = await refreshApplicationFields(id)
-    if (result.success) router.refresh()
-    setPending(null)
+    setPending(id); setActionError(null)
+    try {
+      const result = await refreshApplicationFields(id)
+      if (!result.success) throw new Error(result.error)
+      router.refresh()
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not refresh the application questions.")
+    } finally {
+      setPending(null)
+    }
   }
   if (!applications.length) {
     return <div className="rounded-4xl border border-dashed bg-card px-6 py-16 text-center"><div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Bot className="size-6" /></div><h2 className="mt-4 font-semibold">No AI applications yet</h2><p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">Choose “Apply automatically using AI Agent” from any job to track its progress here.</p><Link href="/dashboard/jobs" className="mt-5 inline-flex h-9 items-center rounded-4xl bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80">Browse jobs</Link></div>
   }
 
   return <>
+    <div aria-live="polite" className="sr-only">{hasActiveWorkflow ? "Application workflow is in progress." : "Application workflow updated."}</div>
+    {actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}
     <div className="space-y-3">
       {applications.map((application) => {
         const displayStatus = submittingIds.has(application.id) ? "submitting" : application.status
         const meta = statusMeta[displayStatus] ?? statusMeta.failed
         const Icon = meta.icon
         const fields = Array.isArray(application.missing_fields) ? application.missing_fields as { label?: string }[] : []
-        const captchaBlocked = /captcha verification/i.test(application.error_message ?? "")
         const liveVerificationPending = isAwaitingVerification(application)
         const manualFormPending = isAwaitingManualFormCompletion(application)
         const missingFormFields = needsManualFieldCompletion(application)
@@ -134,8 +143,6 @@ export function ApplicationStatusList({ applications }: { applications: Applicat
           ? missingFormFields
             ? "The AI pre-filled what it could. Complete the remaining required fields in the live form, then press the employer's Submit button."
             : "The AI clicked Submit, but the employer did not return a confirmation we can safely verify. Review the live form and submit it if the button is still shown."
-          : captchaBlocked
-          ? "This employer requires a human CAPTCHA check before the final submission."
           : displayStatus === "failed"
           ? "The application could not finish. Retry the AI flow or apply directly on the employer's site."
           : meta.description
@@ -145,9 +152,9 @@ export function ApplicationStatusList({ applications }: { applications: Applicat
             <div className="flex min-w-0 flex-1 gap-3">
               <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted"><Icon className="size-5 text-muted-foreground" /></div>
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2"><h2 className="truncate font-semibold">{application.jobs?.title ?? "Job application"}</h2><Badge variant="outline" className={meta.className}>{liveVerificationPending || captchaBlocked ? "Verification required" : manualFormPending ? "Your action needed" : meta.label}</Badge></div>
+                <div className="flex flex-wrap items-center gap-2"><h2 className="truncate font-semibold">{application.jobs?.title ?? "Job application"}</h2><Badge variant="outline" className={meta.className}>{liveVerificationPending ? "Verification required" : manualFormPending ? "Your action needed" : meta.label}</Badge></div>
                 <p className="mt-0.5 text-sm text-muted-foreground">{application.jobs?.company ?? application.platform}</p>
-                <p className="mt-2 text-sm text-foreground/70">{description}</p>
+                <p aria-live="polite" className="mt-2 text-sm text-foreground/70">{description}</p>
               </div>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">

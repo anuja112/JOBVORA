@@ -10,11 +10,7 @@ export type ProfileSearchContext = {
   skills: string[]
 }
 
-/**
- * Builds a platform-specific Brave Search query from the user's profile,
- * following the `site:<board> "<role>" "<location>"` pattern — e.g.:
- *   (site:job-boards.greenhouse.io OR site:boards.greenhouse.io) "React Frontend Developer" React "Remote" "San Francisco"
- */
+
 export function buildJobSearchQuery(
   platform: JobPlatform,
   context: ProfileSearchContext

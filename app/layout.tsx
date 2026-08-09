@@ -16,9 +16,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Job Agent — AI Job Application Assistant",
+  title: "JobVora — AI Job Application Assistant",
   description:
     "Automate your job search with AI-powered applications, smart matching, and application tracking.",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
 };
 
 export default function RootLayout({

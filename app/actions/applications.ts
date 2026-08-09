@@ -15,7 +15,7 @@ export async function startAutoApply(jobId: string): Promise<Result> {
   if (!user) return { success: false, error: "You must be signed in to apply." }
   const { data: job, error: jobError } = await supabase.from("jobs").select("id, job_url").eq("id", jobId).eq("user_id", user.id).single()
   if (jobError || !job) return { success: false, error: "Job not found." }
-  const { data: application, error } = await supabase.from("job_applications").upsert({ user_id: user.id, job_id: job.id, application_url: job.job_url, platform: detectApplicationPlatform(job.job_url), status: "detecting_fields", error_message: null }, { onConflict: "user_id,job_id" }).select("id").single()
+  const { data: application, error } = await supabase.from("job_applications").upsert({ user_id: user.id, job_id: job.id, application_url: job.job_url, platform: detectApplicationPlatform(job.job_url), status: "detecting_fields", pending_action: null, error_message: null }, { onConflict: "user_id,job_id" }).select("id").single()
   if (error || !application) return { success: false, error: error?.message ?? "Could not start the application." }
   await inngest.send({ name: "application/detect.requested", data: { applicationId: application.id, userId: user.id } })
   revalidatePath("/dashboard/status"); revalidatePath("/dashboard/jobs")
@@ -38,7 +38,7 @@ export async function refreshApplicationFields(applicationId: string): Promise<R
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: "You must be signed in." }
-  const { error } = await supabase.from("job_applications").update({ status: "detecting_fields", error_message: null }).eq("id", applicationId).eq("user_id", user.id)
+  const { error } = await supabase.from("job_applications").update({ status: "detecting_fields", pending_action: null, error_message: null }).eq("id", applicationId).eq("user_id", user.id)
   if (error) return { success: false, error: error.message }
   await inngest.send({ name: "application/detect.requested", data: { applicationId, userId: user.id } })
   revalidatePath("/dashboard/status")
@@ -54,7 +54,7 @@ export async function cancelApplication(applicationId: string): Promise<Result> 
   if (!user) return { success: false, error: "You must be signed in." }
   const { error } = await supabase
     .from("job_applications")
-    .update({ status: "failed", error_message: "Automation was cancelled before submission." })
+    .update({ status: "failed", pending_action: null, error_message: "Automation was cancelled before submission." })
     .eq("id", applicationId)
     .eq("user_id", user.id)
     .eq("status", "submitting")
@@ -101,7 +101,7 @@ export async function saveMissingApplicationFields(
   const { error: profileError } = await supabase.from("profiles").update({ custom_fields: customFields }).eq("id", user.id)
   if (profileError) return { success: false, error: profileError.message }
   const mapping = { ...((application.field_mapping ?? {}) as Record<string, string>), ...validValues }
-  const { error: updateError } = await supabase.from("job_applications").update({ field_mapping: mapping, missing_fields: remaining, status: remaining.length ? "missing_profile_info" : "ready_to_apply" }).eq("id", applicationId)
+  const { error: updateError } = await supabase.from("job_applications").update({ field_mapping: mapping, missing_fields: remaining, status: remaining.length ? "missing_profile_info" : "ready_to_apply", pending_action: null }).eq("id", applicationId)
   if (updateError) return { success: false, error: updateError.message }
   revalidatePath("/dashboard/status"); revalidatePath("/dashboard/profile")
   return { success: true, applicationId }

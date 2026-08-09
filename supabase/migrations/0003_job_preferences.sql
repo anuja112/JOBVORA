@@ -1,6 +1,4 @@
--- =========================================================================
 -- Job search preferences on profiles (used to build Brave Search queries)
--- =========================================================================
 
 alter table public.profiles
   add column if not exists preferred_location text,
