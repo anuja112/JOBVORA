@@ -3,9 +3,7 @@ import { Browserbase } from "@browserbasehq/sdk"
 
 import { createClient } from "@/lib/supabase/server"
 
-// A Browserbase live-view URL is short-lived and should never be stored in the
-// database or exposed to another account. Authorize ownership first, then
-// obtain a fresh URL only when the applicant opens this route.
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ sessionId: string }> }

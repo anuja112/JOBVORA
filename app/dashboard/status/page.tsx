@@ -4,9 +4,6 @@ import { createClient } from "@/lib/supabase/server"
 import { ApplicationStatusList } from "@/components/dashboard/application-status-list"
 import type { Database } from "@/lib/supabase/database.types"
 
-// This page is polled while a Browserbase/Inngest workflow runs. It must never
-// serve a cached server render, otherwise a verification handoff only appears
-// after the applicant manually refreshes the browser.
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
@@ -14,7 +11,7 @@ export default async function ApplicationStatusPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/sign-in")
-  const { data } = await supabase.from("job_applications").select("id, status, platform, application_url, browserbase_session_id, error_message, missing_fields, jobs(title, company)").eq("user_id", user.id).order("updated_at", { ascending: false })
+  const { data } = await supabase.from("job_applications").select("id, status, platform, application_url, browserbase_session_id, pending_action, error_message, missing_fields, jobs(title, company)").eq("user_id", user.id).order("updated_at", { ascending: false })
   const applications = (data ?? []) as unknown as Database["public"]["Tables"]["job_applications"]["Row"][]
   const total = applications.length
   const inProgress = applications.filter((application) => ["detecting_fields", "ready_to_apply", "submitting"].includes(application.status)).length

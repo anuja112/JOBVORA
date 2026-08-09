@@ -19,16 +19,14 @@ export function OnboardingDialog({ open }: { open: boolean }) {
 
   function handleSuccess() {
     setJustFinished(true)
-    // Re-fetch the layout's server data (profiles.onboarding_completed),
-    // which flips `open` to false and unmounts this dialog.
+
     router.refresh()
   }
 
   return (
     <Dialog
       open={open}
-      // Fully controlled + no-op handler: ignores escape key and outside
-      // clicks, so the only way out is a successful upload.
+
       onOpenChange={() => {}}
       disablePointerDismissal
     >

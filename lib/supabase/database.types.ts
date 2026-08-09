@@ -410,9 +410,9 @@ export interface Database {
         Relationships: []
       }
       job_applications: {
-        Row: { id: string; user_id: string; job_id: string; platform: string; application_url: string; status: ApplicationStatus; required_fields: Json; missing_fields: Json; field_mapping: Json; browserbase_session_id: string | null; submitted_at: string | null; error_message: string | null; created_at: string; updated_at: string }
-        Insert: { id?: string; user_id: string; job_id: string; platform?: string; application_url: string; status?: ApplicationStatus; required_fields?: Json; missing_fields?: Json; field_mapping?: Json; browserbase_session_id?: string | null; submitted_at?: string | null; error_message?: string | null; created_at?: string; updated_at?: string }
-        Update: { id?: string; user_id?: string; job_id?: string; platform?: string; application_url?: string; status?: ApplicationStatus; required_fields?: Json; missing_fields?: Json; field_mapping?: Json; browserbase_session_id?: string | null; submitted_at?: string | null; error_message?: string | null; created_at?: string; updated_at?: string }
+        Row: { id: string; user_id: string; job_id: string; platform: string; application_url: string; status: ApplicationStatus; required_fields: Json; missing_fields: Json; field_mapping: Json; browserbase_session_id: string | null; pending_action: string | null; submitted_at: string | null; error_message: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; user_id: string; job_id: string; platform?: string; application_url: string; status?: ApplicationStatus; required_fields?: Json; missing_fields?: Json; field_mapping?: Json; browserbase_session_id?: string | null; pending_action?: string | null; submitted_at?: string | null; error_message?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; user_id?: string; job_id?: string; platform?: string; application_url?: string; status?: ApplicationStatus; required_fields?: Json; missing_fields?: Json; field_mapping?: Json; browserbase_session_id?: string | null; pending_action?: string | null; submitted_at?: string | null; error_message?: string | null; created_at?: string; updated_at?: string }
         Relationships: []
       }
     }

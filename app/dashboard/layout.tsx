@@ -25,8 +25,6 @@ export default async function DashboardLayout({
     .eq("id", user.id)
     .maybeSingle()
 
-  // A missing row (e.g. the trigger hasn't run yet for an older account)
-  // is treated the same as "not onboarded" — safer than assuming done.
   const needsOnboarding = !profile?.onboarding_completed
 
   const displayName =
