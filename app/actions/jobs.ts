@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { searchBrave } from "@/lib/jobs/brave-search"
 import { buildJobSearchQuery, type ProfileSearchContext } from "@/lib/jobs/query-builder"
+import { recalculateJobMatchScores } from "@/lib/jobs/match-score"
 import { normalizeBraveResult } from "@/lib/jobs/normalize"
 import type { Database, JobPlatform } from "@/lib/supabase/database.types"
 
@@ -51,7 +52,7 @@ export async function fetchJobsAction(
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "skills, headline, location, preferred_location, target_role, job_type_preference"
+      "skills, headline, summary, location, preferred_location, target_role, job_type_preference"
     )
     .eq("id", user.id)
     .maybeSingle()
@@ -63,6 +64,30 @@ export async function fetchJobsAction(
     location: profile?.location ?? null,
     jobTypePreference: profile?.job_type_preference ?? null,
     skills: profile?.skills ?? [],
+  }
+
+  const [workExperienceRes, educationRes, projectsRes, certificationsRes] = await Promise.all([
+    supabase.from("work_experiences").select("company, title, location, start_date, end_date, is_current, description, bullets").eq("user_id", user.id),
+    supabase.from("educations").select("institution, degree, field_of_study, start_date, end_date, description").eq("user_id", user.id),
+    supabase.from("projects").select("name, description, tech_stack, link").eq("user_id", user.id),
+    supabase.from("certifications").select("name, issuer, issue_date, credential_url").eq("user_id", user.id),
+  ])
+  const matchProfile = {
+    headline: profile?.headline ?? null,
+    summary: profile?.summary ?? null,
+    skills: profile?.skills ?? [],
+    workExperience: (workExperienceRes.data ?? []).map((item) => ({ company: item.company, title: item.title, location: item.location, startDate: item.start_date, endDate: item.end_date, isCurrent: item.is_current, description: item.description, bullets: item.bullets ?? [] })),
+    education: (educationRes.data ?? []).map((item) => ({ institution: item.institution, degree: item.degree, fieldOfStudy: item.field_of_study, startDate: item.start_date, endDate: item.end_date, description: item.description })),
+    projects: (projectsRes.data ?? []).map((item) => ({ name: item.name, description: item.description, techStack: item.tech_stack ?? [], link: item.link })),
+    certifications: (certificationsRes.data ?? []).map((item) => ({ name: item.name, issuer: item.issuer, issueDate: item.issue_date, credentialUrl: item.credential_url })),
+  }
+
+  // Cached jobs still need to reflect the latest parsed resume/profile.
+  // This makes the score deterministic per user and per job even when a
+  // provider search itself is still inside the cache window.
+  const scoreRefresh = await recalculateJobMatchScores(supabase, user.id, matchProfile)
+  if (scoreRefresh.error) {
+    console.error("Failed to refresh job match scores:", scoreRefresh.error)
   }
 
   const meta = {} as Record<JobPlatform, PlatformFetchMeta>
@@ -97,7 +122,7 @@ export async function fetchJobsAction(
     }
 
     const rows = searchResult.results.map((result) => ({
-      ...normalizeBraveResult({ platform, result, skills: searchContext.skills }),
+      ...normalizeBraveResult({ platform, result, matchProfile }),
       user_id: user.id,
       fetched_at: new Date().toISOString(),
     }))

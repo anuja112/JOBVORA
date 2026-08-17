@@ -67,7 +67,7 @@ export function JobListing({
   onSavedChange?: (saved: boolean) => void
 }) {
   const [saved, setSaved] = React.useState(job.saved_status)
-  const applicationStatus = job.applied_status
+  const [applicationStatus, setApplicationStatus] = React.useState(job.applied_status)
   const [automationStatus, setAutomationStatus] = React.useState(job.automationStatus)
   const [isSaving, setIsSaving] = React.useState(false)
   const [applyOpen, setApplyOpen] = React.useState(false)
@@ -203,6 +203,6 @@ export function JobListing({
           {saved ? "Saved" : "Save"}
         </Button>
       </ItemActions>
-    </Item><ApplyOptionsDialog open={applyOpen} onOpenChange={setApplyOpen} jobId={job.id} jobUrl={job.job_url} onAutoStarted={() => setAutomationStatus("detecting_fields")} /></>
+    </Item><ApplyOptionsDialog open={applyOpen} onOpenChange={setApplyOpen} jobId={job.id} jobUrl={job.job_url} onAutoStarted={() => setAutomationStatus("detecting_fields")} onManualSubmitted={() => { setApplicationStatus("applied"); setAutomationStatus("submitted") }} /></>
   )
 }
