@@ -46,6 +46,8 @@ export async function updateProfileAction(
   }
 
   revalidatePath("/dashboard/profile")
+  revalidatePath("/dashboard/jobs")
+  revalidatePath("/dashboard/saved-jobs")
 
   return { success: true }
 }

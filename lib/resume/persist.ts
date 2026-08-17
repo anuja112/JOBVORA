@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 
 import type { Database, LinkItem } from "@/lib/supabase/database.types"
 import type { ParsedResume } from "@/lib/resume/schema"
+import { recalculateJobMatchScores } from "@/lib/jobs/match-score"
 
 /**
  * Writes resume/profile data into `profiles` and the child tables
@@ -121,6 +122,9 @@ export async function persistResumeData(
   if (failedWrite?.error) {
     return { error: failedWrite.error }
   }
+
+  const scoreUpdate = await recalculateJobMatchScores(supabase, userId, data)
+  if (scoreUpdate.error) return { error: `Failed to update job match scores: ${scoreUpdate.error}` }
 
   return { error: null }
 }

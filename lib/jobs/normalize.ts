@@ -1,6 +1,7 @@
 import type { BraveWebResult } from "@/lib/jobs/brave-search"
 import { getPlatformConfig } from "@/lib/jobs/platforms"
 import type { Database, JobPlatform } from "@/lib/supabase/database.types"
+import { calculateResumeJobMatch, type ResumeMatchProfile } from "@/lib/jobs/match-score"
 
 type JobInsert = Database["public"]["Tables"]["jobs"]["Insert"]
 type NormalizedJob = Omit<JobInsert, "user_id">
@@ -88,27 +89,17 @@ function extractSalary(text: string): string | null {
 
 function matchSkillTags(text: string, skills: string[]): string[] {
   const lower = text.toLowerCase()
-  const matched = skills.filter((skill) => lower.includes(skill.toLowerCase()))
   return skills
     .filter((skill) => lower.includes(skill.toLowerCase()))
     .slice(0, 6)
 }
 
-function computeMatchScore(text: string, skills: string[]): number {
-  if (skills.length === 0) return 50
-  const lower = text.toLowerCase()
-  const matched = skills.filter((skill) => lower.includes(skill.toLowerCase()))
-  const ratio = matched.length / Math.min(skills.length, 6)
-  // Keep scores in a believable 40-97 band rather than hitting 0 or 100.
-  return Math.round(40 + ratio * 57)
-}
-
 export function normalizeBraveResult(params: {
   platform: JobPlatform
   result: BraveWebResult
-  skills: string[]
+  matchProfile: ResumeMatchProfile
 }): NormalizedJob {
-  const { platform, result, skills } = params
+  const { platform, result, matchProfile } = params
   const cleanTitle = stripHtml(result.title)
   const cleanDescription = stripHtml(result.description ?? "")
   const { role, company } = splitTitle(cleanTitle)
@@ -124,8 +115,8 @@ export function normalizeBraveResult(params: {
     job_type: findKeyword(combinedText, JOB_TYPE_KEYWORDS),
     experience_level: findKeyword(combinedText, EXPERIENCE_KEYWORDS),
     description: cleanDescription ? withTruncationMark(cleanDescription) : null,
-    tags: matchSkillTags(combinedText, skills),
-    match_score: computeMatchScore(combinedText, skills),
+    tags: matchSkillTags(combinedText, matchProfile.skills),
+    match_score: calculateResumeJobMatch(matchProfile, { title: role || cleanTitle, description: cleanDescription }),
     job_url: result.url,
     source_url: result.url,
   }

@@ -22,6 +22,39 @@ export async function startAutoApply(jobId: string): Promise<Result> {
   return { success: true, applicationId: application.id }
 }
 
+// Manual applications leave this app immediately, so record the applicant's
+// intent before opening the external URL. The status survives reloads and is
+// visible beside AI-assisted applications in the same status page.
+export async function markManualApplicationSubmitted(jobId: string): Promise<Result> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: "You must be signed in to apply." }
+  const { data: job, error: jobError } = await supabase
+    .from("jobs")
+    .select("id, job_url")
+    .eq("id", jobId)
+    .eq("user_id", user.id)
+    .single()
+  if (jobError || !job) return { success: false, error: "Job not found." }
+
+  const [{ error: applicationError }, { error: jobUpdateError }] = await Promise.all([
+    supabase.from("job_applications").upsert({
+      user_id: user.id,
+      job_id: job.id,
+      application_url: job.job_url,
+      platform: detectApplicationPlatform(job.job_url),
+      status: "submitted",
+      pending_action: null,
+      submitted_at: new Date().toISOString(),
+      error_message: null,
+    }, { onConflict: "user_id,job_id" }),
+    supabase.from("jobs").update({ applied_status: "applied" }).eq("id", job.id).eq("user_id", user.id),
+  ])
+  if (applicationError || jobUpdateError) return { success: false, error: applicationError?.message ?? jobUpdateError?.message ?? "Could not update the application status." }
+  revalidatePath("/dashboard/status"); revalidatePath("/dashboard/jobs"); revalidatePath("/dashboard/saved-jobs")
+  return { success: true, applicationId: job.id }
+}
+
 export async function continueApplication(applicationId: string): Promise<Result> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

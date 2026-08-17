@@ -175,6 +175,8 @@ export async function parseResumeAction(
     .eq("id", resumeId)
 
   revalidatePath("/dashboard", "layout")
+  revalidatePath("/dashboard/jobs")
+  revalidatePath("/dashboard/saved-jobs")
 
   return { success: true }
 }
