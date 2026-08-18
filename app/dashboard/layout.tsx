@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { OnboardingDialog } from "@/components/dashboard/onboarding-dialog"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { getSubscriptionSummary } from "@/lib/supabase/queries/subscriptions"
 
 export default async function DashboardLayout({
   children,
@@ -38,10 +39,11 @@ export default async function DashboardLayout({
     email: user.email ?? "",
     avatarUrl: user.user_metadata?.avatar_url ?? null,
   }
+  const subscription = await getSubscriptionSummary(supabase, user.id)
 
   return (
     <SidebarProvider>
-      <AppSidebar user={sidebarUser} />
+      <AppSidebar user={sidebarUser} usage={{ used: subscription.usedToday, limit: subscription.plan.limit, remaining: subscription.remainingToday, planName: subscription.plan.name }} />
       <SidebarInset>
         <DashboardHeader />
         <div className="min-w-0 flex-1 overflow-x-hidden">{children}</div>
