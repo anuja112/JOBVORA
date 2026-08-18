@@ -20,6 +20,12 @@ const nextConfig: NextConfig = {
     "@browserbasehq/stagehand",
     "@browserbasehq/sdk",
   ],
+
+  outputFileTracingIncludes: {
+    "/api/inngest": [
+      "./node_modules/playwright-core/browsers.json",
+    ],
+  },
 };
 
 export default nextConfig;
