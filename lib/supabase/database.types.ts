@@ -37,6 +37,7 @@ export interface Database {
           skills: string[]
           links: LinkItem[] | Json
           custom_fields: Json
+          avatar_url: string | null
           preferred_location: string | null
           target_role: string | null
           job_type_preference: string | null
@@ -56,6 +57,7 @@ export interface Database {
           skills?: string[]
           links?: LinkItem[] | Json
           custom_fields?: Json
+          avatar_url?: string | null
           preferred_location?: string | null
           target_role?: string | null
           job_type_preference?: string | null
@@ -75,6 +77,7 @@ export interface Database {
           skills?: string[]
           links?: LinkItem[] | Json
           custom_fields?: Json
+          avatar_url?: string | null
           preferred_location?: string | null
           target_role?: string | null
           job_type_preference?: string | null

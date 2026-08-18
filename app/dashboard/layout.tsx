@@ -22,13 +22,14 @@ export default async function DashboardLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("onboarding_completed")
+    .select("onboarding_completed, full_name, avatar_url")
     .eq("id", user.id)
     .maybeSingle()
 
   const needsOnboarding = !profile?.onboarding_completed
 
   const displayName =
+    profile?.full_name ??
     user.user_metadata?.full_name ??
     user.user_metadata?.name ??
     user.email?.split("@")[0] ??
@@ -37,7 +38,7 @@ export default async function DashboardLayout({
   const sidebarUser = {
     name: displayName,
     email: user.email ?? "",
-    avatarUrl: user.user_metadata?.avatar_url ?? null,
+    avatarUrl: profile?.avatar_url ?? user.user_metadata?.avatar_url ?? null,
   }
   const subscription = await getSubscriptionSummary(supabase, user.id)
 
