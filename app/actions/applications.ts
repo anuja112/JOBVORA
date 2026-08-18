@@ -6,6 +6,7 @@ import { inngest } from "@/lib/inngest/client"
 import { detectApplicationPlatform } from "@/lib/automation/platform"
 import { canonicalField, type RequiredField } from "@/lib/automation/field-mapper"
 import { GoogleGenAI } from "@google/genai"
+import { checkAndIncrementUsage, usageLimitMessage } from "@/lib/billing/usage"
 
 type Result = { success: true; applicationId: string } | { success: false; error: string }
 
@@ -15,6 +16,9 @@ export async function startAutoApply(jobId: string): Promise<Result> {
   if (!user) return { success: false, error: "You must be signed in to apply." }
   const { data: job, error: jobError } = await supabase.from("jobs").select("id, job_url").eq("id", jobId).eq("user_id", user.id).single()
   if (jobError || !job) return { success: false, error: "Job not found." }
+  const usage = await checkAndIncrementUsage(supabase, user.id)
+  if ("error" in usage) return { success: false, error: `Could not verify your plan usage: ${usage.error}` }
+  if (!usage.allowed) return { success: false, error: usageLimitMessage(usage) }
   const { data: application, error } = await supabase.from("job_applications").upsert({ user_id: user.id, job_id: job.id, application_url: job.job_url, platform: detectApplicationPlatform(job.job_url), status: "detecting_fields", pending_action: null, error_message: null }, { onConflict: "user_id,job_id" }).select("id").single()
   if (error || !application) return { success: false, error: error?.message ?? "Could not start the application." }
   await inngest.send({ name: "application/detect.requested", data: { applicationId: application.id, userId: user.id } })

@@ -58,7 +58,9 @@ type SidebarUser = {
   avatarUrl?: string | null
 }
 
-export function AppSidebar({ user }: { user: SidebarUser }) {
+type UsageSummary = { used: number; limit: number | null; remaining: number | null; planName: string }
+
+export function AppSidebar({ user, usage }: { user: SidebarUser; usage: UsageSummary }) {
   const pathname = usePathname()
 
   return (
@@ -114,7 +116,7 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
       </SidebarContent>
 
       <SidebarFooter>
-        <CreditsCard />
+        <CreditsCard usage={usage} />
         <SidebarSeparator className="my-0.5" />
         <UserMenu user={user} />
         <SignOutMenuButton />
@@ -124,23 +126,25 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
   )
 }
 
-function CreditsCard() {
+function CreditsCard({ usage }: { usage: UsageSummary }) {
   const { state, isMobile } = useSidebar()
   const collapsed = state === "collapsed" && !isMobile
 
-  const creditsUsed = 68
-  const creditsTotal = 100
+  const unlimited = usage.limit === null
+  const used = usage.used
+  const total = usage.limit ?? Math.max(used, 1)
+  const remaining = usage.remaining
 
   if (collapsed) {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton
-            tooltip={`${creditsTotal - creditsUsed} credits left`}
+            tooltip={unlimited ? "Unlimited AI applications" : `${remaining} AI applications left today`}
             render={<Link href="/dashboard/billing" />}
           >
             <Zap />
-            <span>Credits</span>
+            <span>Billing</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
@@ -158,25 +162,25 @@ function CreditsCard() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-xs font-medium text-sidebar-foreground">
           <Zap className="size-3.5 text-sidebar-accent-foreground" />
-          Billing &amp; Credits
+          {usage.planName} plan
         </div>
         <CreditCard className="size-3.5 text-sidebar-foreground/50 transition-transform group-hover/credits:translate-x-0.5" />
       </div>
 
       <div className="space-y-1.5">
         <Progress
-          value={(creditsUsed / creditsTotal) * 100}
+          value={unlimited ? 100 : (used / total) * 100}
           className="[&_[data-slot=progress-track]]:h-1.5 [&_[data-slot=progress-track]]:bg-sidebar-border [&_[data-slot=progress-indicator]]:bg-sidebar-accent-foreground"
         />
         <div className="flex items-baseline justify-between">
           <span className="text-sm font-semibold tabular-nums text-sidebar-foreground">
-            {creditsTotal - creditsUsed}
+            {unlimited ? "Unlimited" : remaining}
             <span className="ml-1 text-xs font-normal text-sidebar-foreground/60">
-              credits left
+              {unlimited ? "usage" : "left today"}
             </span>
           </span>
           <span className="text-[11px] text-sidebar-foreground/50">
-            {creditsUsed}/{creditsTotal}
+            {unlimited ? `${used} today` : `${used}/${total}`}
           </span>
         </div>
       </div>

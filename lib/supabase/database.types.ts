@@ -15,6 +15,7 @@ export type AppliedStatus =
   | "rejected"
   | "offer"
 export type ApplicationStatus = "detecting_fields" | "missing_profile_info" | "ready_to_apply" | "submitting" | "submitted" | "failed"
+export type SubscriptionPlan = "free" | "pro" | "unlimited"
 
 export interface LinkItem {
   label: string
@@ -415,9 +416,32 @@ export interface Database {
         Update: { id?: string; user_id?: string; job_id?: string; platform?: string; application_url?: string; status?: ApplicationStatus; required_fields?: Json; missing_fields?: Json; field_mapping?: Json; browserbase_session_id?: string | null; pending_action?: string | null; submitted_at?: string | null; error_message?: string | null; created_at?: string; updated_at?: string }
         Relationships: []
       }
+      user_subscriptions: {
+        Row: { user_id: string; plan: SubscriptionPlan; plan_name: string; plan_limit: number | null; stripe_customer_id: string | null; stripe_subscription_id: string | null; subscription_status: string; payment_status: string; current_period_start: string | null; current_period_end: string | null; created_at: string; updated_at: string }
+        Insert: { user_id: string; plan?: SubscriptionPlan; plan_name?: string; plan_limit?: number | null; stripe_customer_id?: string | null; stripe_subscription_id?: string | null; subscription_status?: string; payment_status?: string; current_period_start?: string | null; current_period_end?: string | null; created_at?: string; updated_at?: string }
+        Update: { user_id?: string; plan?: SubscriptionPlan; plan_name?: string; plan_limit?: number | null; stripe_customer_id?: string | null; stripe_subscription_id?: string | null; subscription_status?: string; payment_status?: string; current_period_start?: string | null; current_period_end?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      daily_apply_usage: {
+        Row: { user_id: string; usage_date: string; ai_apply_count: number; created_at: string; updated_at: string }
+        Insert: { user_id: string; usage_date?: string; ai_apply_count?: number; created_at?: string; updated_at?: string }
+        Update: { user_id?: string; usage_date?: string; ai_apply_count?: number; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      billing_history: {
+        Row: { id: string; user_id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null; stripe_event_id: string | null; plan_name: string | null; amount_cents: number | null; currency: string | null; payment_status: string | null; event_type: string; details: Json; created_at: string }
+        Insert: { id?: string; user_id: string; stripe_customer_id?: string | null; stripe_subscription_id?: string | null; stripe_event_id?: string | null; plan_name?: string | null; amount_cents?: number | null; currency?: string | null; payment_status?: string | null; event_type: string; details?: Json; created_at?: string }
+        Update: { id?: string; user_id?: string; stripe_customer_id?: string | null; stripe_subscription_id?: string | null; stripe_event_id?: string | null; plan_name?: string | null; amount_cents?: number | null; currency?: string | null; payment_status?: string | null; event_type?: string; details?: Json; created_at?: string }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      check_and_increment_ai_apply_usage: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
+    }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
   }

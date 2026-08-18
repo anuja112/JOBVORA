@@ -1,13 +1,11 @@
-import { CreditCard } from "lucide-react"
+import { BillingDashboard } from "@/components/dashboard/billing-dashboard"
+import { getSubscriptionSummary } from "@/lib/supabase/queries/subscriptions"
+import { createClient } from "@/lib/supabase/server"
 
-import { PagePlaceholder } from "@/components/dashboard/page-placeholder"
-
-export default function BillingPage() {
-  return (
-    <PagePlaceholder
-      icon={CreditCard}
-      title="Billing & Credits"
-      description="Manage your plan, top up credits, and view billing history."
-    />
-  )
+export default async function BillingPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const summary = await getSubscriptionSummary(supabase, user.id)
+  return <BillingDashboard summary={summary} />
 }
