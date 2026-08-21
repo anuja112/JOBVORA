@@ -136,6 +136,3 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 
 Contributions, issues, and feature requests are welcome. Feel free to open an issue or submit a pull request.
 
-## License
-
-No license has been specified for this project yet. All rights reserved by the repository owner unless stated otherwise.
