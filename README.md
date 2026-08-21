@@ -136,3 +136,6 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 
 Contributions, issues, and feature requests are welcome. Feel free to open an issue or submit a pull request.
 
+## License
+
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
