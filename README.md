@@ -4,13 +4,13 @@
 
 ## Features
 
-- 🎯 **Smart job discovery** — search for roles that match your skills, goals, and preferred way of working
-- 📄 **AI resume parsing** — upload a resume and let Gemini extract your profile, work history, and education automatically
-- 🤖 **Automated applications** — a browser automation agent (Browserbase + Playwright + Stagehand) fills out and submits applications on supported platforms
-- 🧩 **Smart field mapping** — maps your profile data to each employer's application form, including custom screening questions
-- 🔔 **Human-in-the-loop safeguards** — pauses for manual verification (e.g. CAPTCHAs) or manual review whenever automation can't safely proceed
-- 📊 **Application tracking** — a dashboard to track saved jobs, application status, and progress from first application to final interview
-- ⚙️ **Background job processing** — long-running application workflows are orchestrated with Inngest
+-  **Smart job discovery** — search for roles that match your skills, goals, and preferred way of working
+-  **AI resume parsing** — upload a resume and let Gemini extract your profile, work history, and education automatically
+-  **Automated applications** — a browser automation agent (Browserbase + Playwright + Stagehand) fills out and submits applications on supported platforms
+-  **Smart field mapping** — maps your profile data to each employer's application form, including custom screening questions
+-  **Human-in-the-loop safeguards** — pauses for manual verification (e.g. CAPTCHAs) or manual review whenever automation can't safely proceed
+-  **Application tracking** — a dashboard to track saved jobs, application status, and progress from first application to final interview
+-  **Background job processing** — long-running application workflows are orchestrated with Inngest
 
 ### Supported application platforms
 
